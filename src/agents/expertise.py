@@ -59,8 +59,7 @@ def compute_payout(total_cost: float, deductible: float, cap: float) -> float:
     float
         The payable amount, rounded to the cent.
     """
-    # TODO (Step 3) — Apply the formula above, rounded to the cent.
-    raise NotImplementedError("Step 3 — compute_payout")
+    return round(min(max(total_cost - deductible, 0.0), cap), 2)
 
 
 def build_message(declaration: ClaimDeclaration, validation: ValidationDecision) -> dict:
@@ -88,10 +87,8 @@ def build_message(declaration: ClaimDeclaration, validation: ValidationDecision)
         f"Applicable coverage: {validation.coverage}\n"
         f"Attached photos: {len(declaration.attachments)}"
     )
-    # TODO (Step 3) — Build the multimodal message: a list of blocks, first
-    # {"type": "text", "text": text}, then one block per attached photo
-    # (`image_block(name)` for each name in declaration.attachments).
-    raise NotImplementedError("Step 3 — build_message")
+    content = [{"type": "text", "text": text}] + [image_block(name) for name in declaration.attachments]
+    return {"role": "user", "content": content}
 
 
 def eur(amount: float, decimals: int = 0) -> str:
