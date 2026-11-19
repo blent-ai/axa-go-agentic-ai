@@ -139,16 +139,34 @@ def missing_items(info: ClaimInfo, attachments: list[str]) -> list[str]:
     list[str]
         The missing items, in the order of the table above.
     """
-    # TODO (Step 1) — Apply the rules of the table above.
-    #   - out of scope: no item required (empty list);
-    #   - all types: "loss_date" if info.loss_date is None;
-    #   - then, depending on info.claim_type, "photos" (if `attachments` is
-    #     empty), "joint_report", "police_report", "inventory", relying on the
-    #     booleans extracted by the LLM (third_party_involved,
-    #     joint_report_provided, criminal_suspicion, police_report_filed,
-    #     inventory_provided).
-    # Respect the order of the table: the tests compare lists.
-    raise NotImplementedError("Step 1 — missing_items")
+    if info.claim_type == "out_of_scope":
+        return []
+
+    missing = []
+    if info.loss_date is None:
+        missing.append("loss_date")
+
+    if info.claim_type == "water_damage":
+        if not attachments:
+            missing.append("photos")
+        if info.third_party_involved and not info.joint_report_provided:
+            missing.append("joint_report")
+
+    elif info.claim_type == "fire_explosion":
+        if not attachments:
+            missing.append("photos")
+        if not info.inventory_provided:
+            missing.append("inventory")
+        if info.criminal_suspicion and not info.police_report_filed:
+            missing.append("police_report")
+
+    elif info.claim_type == "theft_vandalism":
+        if not info.police_report_filed:
+            missing.append("police_report")
+        if not info.inventory_provided:
+            missing.append("inventory")
+
+    return missing
 
 
 def follow_up_message(missing: list[str]) -> str:
@@ -206,13 +224,13 @@ def build_declaration_agent(model=None):
         An agent whose final answer is a `ClaimInfo`
         (``structured_response`` key of the result).
     """
-    # TODO (Step 1) — Build the agent with `create_agent`:
-    #   - model: `model`, or `get_chat_model()` by default;
-    #   - tools: TOOLS;
-    #   - system_prompt: DECLARATION_PROMPT;
-    #   - response_format: ClaimInfo (the expected structured output);
-    #   - middleware: middlewares() (tool errors, call limit).
-    raise NotImplementedError("Step 1 — build_declaration_agent")
+    return create_agent(
+        model=model or get_chat_model(),
+        tools=TOOLS,
+        system_prompt=DECLARATION_PROMPT,
+        response_format=ClaimInfo,
+        middleware=middlewares(),
+    )
 
 
 def format_claim(claim: Claim) -> str:

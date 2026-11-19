@@ -52,9 +52,12 @@ def score_items(predicted: list[str], expected: list[str]) -> dict:
         correctly detected), false positives (false alarms), false negatives
         (missing items not detected).
     """
-    # TODO (Step 1) — Count true positives, false positives and false negatives
-    # (hint: set operations).
-    raise NotImplementedError("Step 1 — score_items")
+    predicted, expected = set(predicted), set(expected)
+    return {
+        "tp": len(predicted & expected),
+        "fp": len(predicted - expected),
+        "fn": len(expected - predicted),
+    }
 
 
 def evaluate_declaration_case(prediction: ClaimDeclaration, expected: dict) -> dict:
