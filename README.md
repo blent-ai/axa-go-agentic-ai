@@ -7,7 +7,7 @@ workflow, that processes each declaration in the background.
 
 Scope: **water damage**, **fire / explosion**, **theft / burglary / vandalism**.
 
-> **You are on branch `step-3`.** The project is split into one branch per step:
+> **You are on branch `step-4`.** The project is split into one branch per step:
 > each branch builds on the previous one (`git diff step-1 step-2` shows exactly
 > what a step adds).
 
@@ -18,8 +18,8 @@ Scope: **water damage**, **fire / explosion**, **theft / burglary / vandalism**.
 | `master` | ✅ | Starting point | Foundation only: schemas, knowledge, config, CLI, UI, tests. Every agent function is a stub. | `uv run python tests/smoke_test.py` |
 | `step-1` | ✅ | Declaration agent | `missing_items`, `build_declaration_agent`, `score_items` | `main.py ex2 --agent declaration` · `main.py --eval declaration` |
 | `step-2` | ✅ | Validation agent | `consult_policy`, `consistency_check`, `policy_accuracy` | `main.py d11 --agent validation` · `main.py --eval validation` |
-| `step-3` | 👉 | Expertise agent | `compute_payout`, `build_message` | `main.py d04 --agent expertise` |
-| `step-4` | ⬜ | Full orchestration | `after_declaration`, `after_validation`, `build_graph` | `streamlit run app.py` · `main.py d04` |
+| `step-3` | ✅ | Expertise agent | `compute_payout`, `build_message` | `main.py d04 --agent expertise` |
+| `step-4` | 👉 | Full orchestration | `after_declaration`, `after_validation`, `build_graph` | `streamlit run app.py` · `main.py d04` |
 | `step-5` | ⬜ | Streaming & checkpointing | `run_agent`, `stream_claim`, `resume_claim`, `get_checkpointer`, `claim_history` | `main.py d04` (live events) · `main.py --resume <thread>` · `main.py --history <thread>` |
 
 Legend: ✅ implemented on this branch · 👉 the step this branch adds · ⬜ still to come (stubs raising `NotImplementedError`).
@@ -92,8 +92,6 @@ The Streamlit interface is only a test bench: in production, processing runs in
 the background for each declaration. It lets you pick or edit a claim, add
 photos, follow the graph node by node, answer a follow-up (the "Policyholder's
 addendum" field) and run the evaluations.
-
-Until step 4, the Streamlit interface chains the agents **without routing**: a rejected file still goes to expertise.
 
 ### Demo scenarios
 

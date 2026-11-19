@@ -133,16 +133,17 @@ def _declaration_summary(declaration: ClaimDeclaration) -> str:
 # --------------------------------------------------------------------------- #
 def after_declaration(state: ClaimState) -> Literal["validation_agent", "notify_customer"]:
     """After the declaration: only a complete, in-scope file is validated."""
-    # TODO (Step 4) — Return "notify_customer" if the claim is out of scope or
-    # if the declaration is incomplete, "validation_agent" otherwise.
-    raise NotImplementedError("Step 4 — after_declaration")
+    declaration = state["declaration"]
+    if declaration.claim_type == "out_of_scope" or not declaration.complete:
+        return "notify_customer"
+    return "validation_agent"
 
 
 def after_validation(state: ClaimState) -> Literal["expertise_agent", "notify_customer"]:
     """After the validation: only an accepted file goes to expertise."""
-    # TODO (Step 4) — Return "expertise_agent" if the decision is
-    # "send_to_expertise", "notify_customer" otherwise.
-    raise NotImplementedError("Step 4 — after_validation")
+    if state["validation"].decision == "send_to_expertise":
+        return "expertise_agent"
+    return "notify_customer"
 
 
 # --------------------------------------------------------------------------- #
@@ -161,15 +162,18 @@ def build_graph(checkpointer=None):
     CompiledStateGraph
         The compiled graph, invocable via ``invoke({"claim": ...})`` or ``stream``.
     """
-    # TODO (Step 4) — Assemble the workflow (see the diagram at the top of the module):
-    #   1. one node per function: declaration_agent, validation_agent,
-    #      expertise_agent, notify_customer (`graph.add_node(name, function)`);
-    #   2. START → declaration_agent (`graph.add_edge`);
-    #   3. after declaration_agent and validation_agent: conditional edges
-    #      (`graph.add_conditional_edges(source, router, [possible destinations])`);
-    #   4. expertise_agent → notify_customer → END.
     graph = StateGraph(ClaimState)
-    raise NotImplementedError("Step 4 — build_graph")
+
+    graph.add_node("declaration_agent", declaration_agent)
+    graph.add_node("validation_agent", validation_agent)
+    graph.add_node("expertise_agent", expertise_agent)
+    graph.add_node("notify_customer", notify_customer)
+
+    graph.add_edge(START, "declaration_agent")
+    graph.add_conditional_edges("declaration_agent", after_declaration, ["validation_agent", "notify_customer"])
+    graph.add_conditional_edges("validation_agent", after_validation, ["expertise_agent", "notify_customer"])
+    graph.add_edge("expertise_agent", "notify_customer")
+    graph.add_edge("notify_customer", END)
 
     return graph.compile(checkpointer=checkpointer)
 
