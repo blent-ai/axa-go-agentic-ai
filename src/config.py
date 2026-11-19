@@ -7,7 +7,7 @@ The LiteLLM gateway exposes an **OpenAI-compatible** API: we therefore use the
 Environment variables (``.env`` file):
 
 - ``LITELLM_BASE_URL``     : gateway URL, for example
-  ``https://litellm.example.internal/v1``;
+  ``https://litellm.blent.ai/v1``;
 - ``LITELLM_API_KEY``      : virtual key issued by the gateway;
 - ``LITELLM_MODEL``        : language model (tool calls, structured outputs);
 - ``LITELLM_VISION_MODEL`` : vision model used to analyse photos. Defaults to
