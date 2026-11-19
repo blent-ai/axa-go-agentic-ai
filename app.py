@@ -12,12 +12,14 @@ Usage
 from __future__ import annotations
 
 import time
+import uuid
 
 import pandas as pd
 import streamlit as st
 
 from src.knowledge import (
     ATTACHMENTS_DIR,
+    ROOT,
     CLAIM_TYPE_LABELS,
     load_claims,
     load_jsonl,
@@ -70,12 +72,17 @@ STATUSES = {
 }
 
 
+@st.cache_resource
 def load_graph():
-    """Build the graph (fast operation, no model call). Returns (graph, error)."""
-    try:
-        from src.orchestration import build_graph
+    """Build the graph with a SQLite checkpointer (fast, no model call). Returns (graph, error).
 
-        return build_graph(), None
+    The graph is cached so that the checkpointer connection is shared by all the
+    reruns of the page: an interrupted claim can be resumed from the sidebar.
+    """
+    try:
+        from src.orchestration import build_graph, get_checkpointer
+
+        return build_graph(get_checkpointer(ROOT / "checkpoints" / "app.sqlite")), None
     except NotImplementedError as error:
         return None, str(error)
 
@@ -219,38 +226,64 @@ def render_node(node: str, state: dict, container) -> None:
 # --------------------------------------------------------------------------- #
 # Execution
 # --------------------------------------------------------------------------- #
-def run_graph(graph, claim: Claim, graph_area, agents_area) -> dict:
-    """Run the graph following each node (start, end) and update the display."""
+def run_graph(graph, claim: Claim, graph_area, agents_area, thread_id: str, resume: bool = False) -> dict:
+    """Run (or resume) the graph, **streaming** its events, and update the display live.
+
+    Every event produced by `stream_claim` / `resume_claim` is shown as soon as
+    it arrives: node started, tool called, tool result, node finished. The state
+    is checkpointed after each node, so a crash can be resumed from the sidebar.
+    """
+    from src.orchestration import resume_claim, stream_claim
+
     state: dict = {"claim": claim, "journal": []}
     node_states = {"__start__": "done"}
     edges = graph_edges(graph)
     containers: dict = {}
+    live: dict = {}
+    live_lines: dict = {}
     start = time.time()
     graph_area.graphviz_chart(dot(edges, node_states))
+    events = resume_claim(thread_id, graph) if resume else stream_claim(claim, thread_id, graph)
     try:
-        for event in graph.stream(state, stream_mode="tasks"):
-            node = event["name"]
-            if "result" not in event:  # a node starts
+        for event in events:
+            kind, node = event["type"], event.get("node")
+            if kind == "node_started":
                 node_states[node] = "running"
                 containers[node] = agents_area.status(f"{TITLES[node]} — running…", expanded=True)
-            else:  # a node ends
-                result = event["result"] or {}
+                live[node], live_lines[node] = containers[node].empty(), []
+            elif kind in ("tool_call", "tool_result", "progress"):
+                if kind == "tool_call":
+                    arguments = ", ".join(f"{k}={v!r}" for k, v in event["arguments"].items())
+                    live_lines[node].append(f"⚙️ `{event['tool']}({arguments})`")
+                elif kind == "tool_result":
+                    live_lines[node].append(f"&nbsp;&nbsp;{'❌' if event['error'] else '✓'} {event['result'][:200]}")
+                else:
+                    live_lines[node].append(f"… {event['message']}")
+                live[node].markdown("  \n".join(live_lines[node]))
+            elif kind == "node_finished":
+                result = event["update"]
                 state.update({k: v for k, v in result.items() if k != "journal"})
                 state["journal"] = state["journal"] + result.get("journal", [])
                 node_states[node] = "done"
+                live[node].empty()
                 render_node(node, state, containers[node])
                 containers[node].update(
                     label=f"{TITLES[node]} — {time.time() - start:.1f} s", state="complete",
                     expanded=node in ("expertise_agent", "notify_customer"),
                 )
+            elif kind == "done":
+                state = {**event["state"], "journal": event["state"].get("journal", [])}
             graph_area.graphviz_chart(dot(edges, node_states))
         node_states["__end__"] = "done"
+        st.session_state.pop("interrupted", None)
     except Exception as error:  # noqa: BLE001 - displayed as is in the interface
         running = [n for n, s in node_states.items() if s == "running"]
         for node in running:
             node_states[node] = "error"
             containers[node].update(label=f"{TITLES[node]} — error", state="error")
         agents_area.error(f"**{type(error).__name__}**: {error}")
+        agents_area.info(f"Progress saved (thread `{thread_id}`). Use **Resume interrupted claim** in the sidebar.")
+        st.session_state["interrupted"] = (claim.id, thread_id)
     graph_area.graphviz_chart(dot(edges, node_states))
     state["_node_states"] = node_states
     return state
@@ -314,6 +347,18 @@ def redisplay(state: dict, graph, graph_area, agents_area) -> None:
             render_node(node, state, container)
 
 
+def history_for(thread_id: str | None, graph) -> None:
+    """Show the checkpoints of the last processing (the audit trail, step 5)."""
+    if not thread_id or graph is None:
+        return
+    from src.orchestration import claim_history
+
+    with st.expander(f"Checkpoints — thread {thread_id}"):
+        st.dataframe(
+            pd.DataFrame(claim_history(thread_id, graph)).astype(str), hide_index=True, width="stretch"
+        )
+
+
 # --------------------------------------------------------------------------- #
 # Sidebar: the claim to process
 # --------------------------------------------------------------------------- #
@@ -338,6 +383,11 @@ with st.sidebar:
         placeholder="E.g.: I filled in the joint report with my neighbor, I am attaching it.",
     )
     run = st.button("▶ Process the claim", type="primary", width="stretch")
+    interrupted = st.session_state.get("interrupted")
+    resume = False
+    if interrupted:
+        st.warning(f"Claim {interrupted[0]} was interrupted.")
+        resume = st.button("↻ Resume interrupted claim", width="stretch")
 
 for file in uploaded or []:
     name = f"upload_{file.name}"
@@ -368,14 +418,21 @@ with processing_tab:
             st.text(claim.message)
         agents_area = st.container()
 
-    if run:
+    if resume and graph is not None:
+        state = run_graph(graph, claim, graph_area, agents_area, thread_id=interrupted[1], resume=True)
+        st.session_state["last"] = (claim.id, state)
+    elif run:
         if graph is not None:
-            state = run_graph(graph, claim, graph_area, agents_area)
+            thread_id = f"{claim.id}-{uuid.uuid4().hex[:8]}"
+            state = run_graph(graph, claim, graph_area, agents_area, thread_id=thread_id)
+            state["_thread_id"] = thread_id
+            history_for(thread_id, graph)
         else:
             state = run_without_graph(claim, graph_area, agents_area)
         st.session_state["last"] = (claim.id, state)
     elif st.session_state.get("last", (None,))[0] == claim.id:
         redisplay(st.session_state["last"][1], graph, graph_area, agents_area)
+        history_for(st.session_state["last"][1].get("_thread_id"), graph)
     else:
         edges = graph_edges(graph)
         graph_area.graphviz_chart(dot(edges, {}, expected=graph is None))

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 from langchain.agents.middleware import (
     ModelCallLimitMiddleware,
     ToolCallRequest,
@@ -79,3 +81,53 @@ def extract_trace(messages: list, tools: list) -> list[dict]:
                 }
             )
     return trace
+
+
+def run_agent(agent, user_message: str, tools: list, on_event: Callable[[dict], None] | None = None) -> dict:
+    """Run a ReAct agent while **streaming** its progress.
+
+    Instead of waiting for `agent.invoke` to return, we iterate over the
+    successive states of the agent (``stream_mode="values"``) and report every
+    new tool call and tool result to ``on_event`` as soon as it happens. The
+    last state is the same as what `invoke` would have returned.
+
+    Parameters
+    ----------
+    agent : CompiledStateGraph
+        An agent built with `create_agent`.
+    user_message : str
+        The user message sent to the agent.
+    tools : list
+        The agent's tools (calls to other tools, such as the structured-output
+        tool, are not reported).
+    on_event : Callable[[dict], None], optional
+        Receives ``{"type": "tool_call", "tool": ..., "arguments": {...}}`` and
+        ``{"type": "tool_result", "tool": ..., "result": "...", "error": bool}``.
+
+    Returns
+    -------
+    dict
+        The final state of the agent (``messages``, ``structured_response``...).
+    """
+    names = {tool.name for tool in tools}
+    call_names: dict[str, str] = {}
+    seen, final = 0, {}
+    for state in agent.stream({"messages": [{"role": "user", "content": user_message}]}, stream_mode="values"):
+        for message in state["messages"][seen:]:
+            if on_event is None:
+                continue
+            if isinstance(message, AIMessage):
+                for call in message.tool_calls:
+                    call_names[call["id"]] = call["name"]
+                    if call["name"] in names:
+                        on_event({"type": "tool_call", "tool": call["name"], "arguments": call["args"]})
+            elif isinstance(message, ToolMessage) and call_names.get(message.tool_call_id) in names:
+                on_event({
+                    "type": "tool_result",
+                    "tool": call_names[message.tool_call_id],
+                    "result": message.text,
+                    "error": message.status == "error",
+                })
+        seen = len(state["messages"])
+        final = state
+    return final

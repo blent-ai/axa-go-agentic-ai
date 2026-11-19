@@ -7,7 +7,7 @@ workflow, that processes each declaration in the background.
 
 Scope: **water damage**, **fire / explosion**, **theft / burglary / vandalism**.
 
-> **You are on branch `step-4`.** The project is split into one branch per step:
+> **You are on branch `step-5`.** The project is split into one branch per step:
 > each branch builds on the previous one (`git diff step-1 step-2` shows exactly
 > what a step adds).
 
@@ -19,8 +19,8 @@ Scope: **water damage**, **fire / explosion**, **theft / burglary / vandalism**.
 | `step-1` | ✅ | Declaration agent | `missing_items`, `build_declaration_agent`, `score_items` | `main.py ex2 --agent declaration` · `main.py --eval declaration` |
 | `step-2` | ✅ | Validation agent | `consult_policy`, `consistency_check`, `policy_accuracy` | `main.py d11 --agent validation` · `main.py --eval validation` |
 | `step-3` | ✅ | Expertise agent | `compute_payout`, `build_message` | `main.py d04 --agent expertise` |
-| `step-4` | 👉 | Full orchestration | `after_declaration`, `after_validation`, `build_graph` | `streamlit run app.py` · `main.py d04` |
-| `step-5` | ⬜ | Streaming & checkpointing | `run_agent`, `stream_claim`, `resume_claim`, `get_checkpointer`, `claim_history` | `main.py d04` (live events) · `main.py --resume <thread>` · `main.py --history <thread>` |
+| `step-4` | ✅ | Full orchestration | `after_declaration`, `after_validation`, `build_graph` | `streamlit run app.py` · `main.py d04` |
+| `step-5` | 👉 | Streaming & checkpointing | `run_agent`, `stream_claim`, `resume_claim`, `get_checkpointer`, `claim_history` | `main.py d04` (live events) · `main.py --resume <thread>` · `main.py --history <thread>` |
 
 Legend: ✅ implemented on this branch · 👉 the step this branch adds · ⬜ still to come (stubs raising `NotImplementedError`).
 
@@ -33,7 +33,7 @@ Legend: ✅ implemented on this branch · 👉 the step this branch adds · ⬜ 
 | 🧾 **Declaration** | Structures the policyholder's free-text message, checks that the items required by the process are present, drafts a follow-up if needed | ReAct agent (`create_agent`) + structured output + completeness guardrail | Completeness of the requested information |
 | 📑 **Validation** | Checks the photos (vision model) and the policy coverage, decides what happens next | ReAct agent + structured output + consistency guardrail | Accuracy of the policy facts used |
 | 🔍 **Expertise** | Estimates costs from the photos and computes the payable amount | Multimodal call + deterministic computation | Manual (business experts) |
-| 🔀 **Orchestration** | Chains the agents according to the business process | `StateGraph` workflow with conditional edges | Smoke test |
+| 🔀 **Orchestration** | Chains the agents according to the business process | `StateGraph` workflow with conditional edges + streaming + checkpointing | Smoke test |
 
 ```
 START → declaration_agent ─┬─ complete ─────────→ validation_agent ─┬─ send ─────→ expertise_agent ─┐
@@ -81,7 +81,9 @@ cp .env.example .env   # then fill in your credentials
 
 ```bash
 uv run streamlit run app.py                     # test and visualization interface
-uv run python main.py d04                       # end-to-end processing, on the command line
+uv run python main.py d04                       # end-to-end processing, streamed live
+uv run python main.py --resume <thread id>      # resume an interrupted claim (step 5)
+uv run python main.py --history <thread id>     # checkpoints of a claim (step 5)
 uv run python main.py ex2 --agent declaration   # a single agent (or up to validation / expertise)
 uv run python main.py --eval declaration        # evaluation on the golden dataset
 uv run python main.py --eval validation
@@ -115,11 +117,11 @@ src/
   schemas.py               Interface contract between agents (Pydantic)
   knowledge.py             Process, policy, business days, photo encoding
   agents/
-    common.py              Middlewares (tool errors, call limit), trace
+    common.py              Middlewares, tool trace, streamed agent runner (`run_agent`)
     declaration.py         Declaration agent                          (Step 1)
     validation.py          Validation agent                           (Step 2)
     expertise.py           Expertise agent                            (Step 3)
-  orchestration.py         The LangGraph workflow                                 (Step 4)
+  orchestration.py         The LangGraph workflow + streaming and checkpointing   (Steps 4-5)
   evaluation.py            Metrics on the golden datasets             (Steps 1-2)
 data/
   claims_process.md        Claims handling process (reference documentation)
@@ -129,6 +131,52 @@ data/
   golden/                  Golden datasets: declaration.jsonl (12 cases), validation.jsonl (9 cases)
 tests/smoke_test.py        Offline check, with a fake model
 ```
+
+## Streaming and checkpointing (Step 5)
+
+Two production concerns are layered on top of the workflow, without changing the
+business logic.
+
+**Streaming**: `stream_claim(claim)` is a generator that yields typed events
+*while* the claim is processed, instead of one result at the very end.
+
+| Event | Meaning |
+|---|---|
+| `node_started` / `node_finished` | an agent (graph node) starts / ends (`update` holds what it wrote to the state) |
+| `tool_call` / `tool_result` | an agent calls a tool / gets its result, as it happens |
+| `progress` | free-form progress message (e.g. the Expertise agent starting its estimate) |
+| `node_error` | a node failed; the exception is raised right after |
+| `done` | the processing finished, `state` holds the final file |
+
+It combines two LangGraph stream modes: `tasks` (node start / end) and `custom`
+(events the nodes publish with `get_stream_writer()`). Inside the agents,
+`run_agent` iterates over `agent.stream(..., stream_mode="values")` and forwards
+each new tool call and result through an `on_event` callback.
+
+**Checkpointing**: the graph is compiled with a checkpointer
+(`build_graph(get_checkpointer(path))`), which saves the state after **every
+node**. A claim is identified by a `thread_id`.
+
+- `resume_claim(thread_id, graph)` restarts from the last checkpoint after a
+  crash (gateway timeout, rate limit...) and replays **only the failed node**:
+  the Declaration and Validation work already done is read from the checkpoint,
+  not recomputed (and not paid for twice).
+- With a SQLite checkpointer the state survives a process restart.
+- `claim_history(thread_id, graph)` lists the checkpoints: the audit trail of the
+  processing, and the points it can be resumed from.
+
+```bash
+uv run python main.py d04                    # streamed live; prints the thread id
+# ... the run is interrupted (network error, Ctrl+C) ...
+uv run python main.py --history d04-1700000000    # checkpoints of the claim
+uv run python main.py --resume d04-1700000000     # replays only what did not finish
+```
+
+In the Streamlit app, tool calls appear live inside each agent's panel; if a
+node fails, a **Resume interrupted claim** button appears in the sidebar and the
+last processing shows its checkpoints.
+
+The checkpoint databases live in `checkpoints/` (git-ignored).
 
 ## Evaluations
 

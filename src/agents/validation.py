@@ -30,7 +30,7 @@ from ..config import get_chat_model, get_vision_model
 from ..knowledge import CLAIM_TYPE_LABELS, image_block, normalize, policy_sections
 from ..knowledge import business_days_between as count_business_days
 from ..schemas import ClaimDeclaration, PhotoConsistency, ValidationAnalysis, ValidationDecision
-from .common import extract_trace, middlewares
+from .common import extract_trace, middlewares, run_agent
 
 VALIDATION_PROMPT = """\
 You are the Validation agent of HomeShield, a home insurance company.
@@ -217,8 +217,19 @@ def format_declaration(declaration: ClaimDeclaration) -> str:
     return "Claim declaration to validate:\n\n" + json.dumps(useful, ensure_ascii=False, indent=2)
 
 
-def run_validation(declaration: ClaimDeclaration, model=None) -> tuple[ValidationDecision, list[dict]]:
+def run_validation(
+    declaration: ClaimDeclaration, model=None, on_event=None
+) -> tuple[ValidationDecision, list[dict]]:
     """Run the Validation agent on a declaration.
+
+    Parameters
+    ----------
+    declaration : ClaimDeclaration
+        The declaration produced by the Declaration agent.
+    model : BaseChatModel, optional
+        Model to use. Defaults to the LiteLLM gateway one.
+    on_event : Callable[[dict], None], optional
+        Receives the tool calls and results as soon as they happen (streaming).
 
     Returns
     -------
@@ -226,6 +237,6 @@ def run_validation(declaration: ClaimDeclaration, model=None) -> tuple[Validatio
         The checked decision, and the trace of tool calls.
     """
     agent = build_validation_agent(model)
-    result = agent.invoke({"messages": [{"role": "user", "content": format_declaration(declaration)}]})
+    result = run_agent(agent, format_declaration(declaration), TOOLS, on_event)
     decision = consistency_check(result["structured_response"], declaration)
     return decision, extract_trace(result["messages"], TOOLS)

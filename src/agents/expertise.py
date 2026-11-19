@@ -136,7 +136,7 @@ def write_report(
 
 
 def run_expertise(
-    declaration: ClaimDeclaration, validation: ValidationDecision, model=None
+    declaration: ClaimDeclaration, validation: ValidationDecision, model=None, on_event=None
 ) -> ExpertiseReport:
     """Run the Expertise agent on a validated file.
 
@@ -148,12 +148,17 @@ def run_expertise(
         The validation decision (coverage, deductible, cap).
     model : BaseChatModel, optional
         Vision model. Defaults to the LiteLLM gateway one.
+    on_event : Callable[[dict], None], optional
+        Receives progress events (streaming). This agent makes a single model
+        call, so it only reports the start of the estimation.
 
     Returns
     -------
     ExpertiseReport
         The estimate, the payable amount and the report for the advisor.
     """
+    if on_event:
+        on_event({"type": "progress", "message": f"Estimating the damage from {len(declaration.attachments)} photo(s)…"})
     llm = (model or get_vision_model()).with_structured_output(DamageEstimate)
     estimate = llm.invoke(
         [{"role": "system", "content": EXPERTISE_PROMPT}, build_message(declaration, validation)]

@@ -26,7 +26,7 @@ from langchain_core.tools import ToolException, tool
 from ..config import get_chat_model
 from ..knowledge import WEEKDAYS, process_for_type, shift_date
 from ..schemas import Claim, ClaimDeclaration, ClaimInfo
-from .common import extract_trace, middlewares
+from .common import extract_trace, middlewares, run_agent
 
 DECLARATION_PROMPT = """\
 You are the Declaration agent of HomeShield, a home insurance company.
@@ -244,8 +244,17 @@ def format_claim(claim: Claim) -> str:
     )
 
 
-def run_declaration(claim: Claim, model=None) -> tuple[ClaimDeclaration, list[dict]]:
+def run_declaration(claim: Claim, model=None, on_event=None) -> tuple[ClaimDeclaration, list[dict]]:
     """Run the Declaration agent on a claim.
+
+    Parameters
+    ----------
+    claim : Claim
+        The claim to process.
+    model : BaseChatModel, optional
+        Model to use. Defaults to the LiteLLM gateway one.
+    on_event : Callable[[dict], None], optional
+        Receives the tool calls and results as soon as they happen (streaming).
 
     Returns
     -------
@@ -253,6 +262,6 @@ def run_declaration(claim: Claim, model=None) -> tuple[ClaimDeclaration, list[di
         The checked declaration, and the trace of tool calls.
     """
     agent = build_declaration_agent(model)
-    result = agent.invoke({"messages": [{"role": "user", "content": format_claim(claim)}]})
+    result = run_agent(agent, format_claim(claim), TOOLS, on_event)
     declaration = completeness_check(result["structured_response"], claim)
     return declaration, extract_trace(result["messages"], TOOLS)
