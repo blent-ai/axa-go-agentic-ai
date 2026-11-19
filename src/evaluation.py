@@ -133,11 +133,14 @@ def policy_accuracy(prediction: ValidationDecision, expected: dict) -> dict[str,
         correctly. The coverage is compared with `same_coverage`, amounts and
         deadlines numerically.
     """
-    # TODO (Step 2) — One boolean per fact of POLICY_FACTS:
-    #   - "coverage": `same_coverage(prediction.coverage, expected["coverage"])`;
-    #   - "cap", "deductible": numeric comparison (beware of None);
-    #   - "reporting_deadline_business_days": equality.
-    raise NotImplementedError("Step 2 — policy_accuracy")
+    return {
+        "coverage": same_coverage(prediction.coverage, expected["coverage"]),
+        "cap": prediction.cap is not None and float(prediction.cap) == float(expected["cap"]),
+        "deductible": prediction.deductible is not None
+        and float(prediction.deductible) == float(expected["deductible"]),
+        "reporting_deadline_business_days": prediction.reporting_deadline_business_days
+        == expected["reporting_deadline_business_days"],
+    }
 
 
 def evaluate_validation_case(prediction: ValidationDecision, case: dict) -> dict:

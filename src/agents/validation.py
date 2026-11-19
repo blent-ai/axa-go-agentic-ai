@@ -77,14 +77,14 @@ def consult_policy(section: str) -> str:
     Returns:
         The exact title of the section and its content in Markdown.
     """
-    # TODO (Step 2) — Return the requested policy section.
-    #   1. `policy_sections()` returns {title: content};
-    #   2. compare `normalize(section)` with `normalize(title)` (one contained in
-    #      the other): "fire" must find "Fire / Explosion";
-    #   3. return f"## {title}\n\n{content}";
-    #   4. otherwise, raise a ToolException listing the available sections: the
-    #      model can correct itself on the next turn.
-    raise NotImplementedError("Step 2 — consult_policy")
+    sections = policy_sections()
+    key = normalize(section)
+    for title, content in sections.items():
+        if key and (key in normalize(title) or normalize(title) in key):
+            return f"## {title}\n\n{content}"
+    raise ToolException(
+        f"Section \"{section}\" not found. Available sections: {', '.join(sections)}."
+    )
 
 
 @tool(parse_docstring=True)
@@ -166,17 +166,27 @@ def consistency_check(analysis: ValidationAnalysis, declaration: ClaimDeclaratio
     data = analysis.model_dump()
     corrections = []
 
-    # TODO (Step 2) — Write the consistency guardrail.
-    #   1. If declaration.loss_date is known: recompute the business days with
-    #      `count_business_days(loss_date, received_date)`, trace a correction if
-    #      they differ from the LLM's, update data["business_days_elapsed"], and
-    #      data["deadline_met"] if the contractual deadline
-    #      (analysis.reporting_deadline_business_days) is known.
-    #   2. No coverage, an exclusion or a missed deadline → "reject".
-    #   3. Otherwise, inconsistent photos + "send_to_expertise" → "request_additional_info".
-    #   4. Trace every change of decision in `corrections`.
+    if declaration.loss_date is not None:
+        days = count_business_days(declaration.loss_date, declaration.received_date)
+        if days != analysis.business_days_elapsed:
+            corrections.append(f"Business days elapsed recomputed: {analysis.business_days_elapsed} → {days}.")
+        data["business_days_elapsed"] = days
+        if analysis.reporting_deadline_business_days is not None:
+            data["deadline_met"] = days <= analysis.reporting_deadline_business_days
+
     decision = analysis.decision
-    raise NotImplementedError("Step 2 — consistency_check")
+    if analysis.coverage is None or analysis.exclusion or not data["deadline_met"]:
+        reason = (
+            "no applicable coverage" if analysis.coverage is None
+            else f"exclusion \"{analysis.exclusion}\"" if analysis.exclusion
+            else "reporting deadline missed"
+        )
+        if decision != "reject":
+            corrections.append(f"Decision {decision} → reject: {reason}.")
+        decision = "reject"
+    elif not analysis.photos_consistent and decision == "send_to_expertise":
+        corrections.append("Decision send_to_expertise → request_additional_info: non-compliant photo.")
+        decision = "request_additional_info"
 
     data["decision"] = decision
     return ValidationDecision(
