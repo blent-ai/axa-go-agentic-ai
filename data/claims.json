@@ -1,0 +1,74 @@
+[
+  {
+    "id": "ex1",
+    "received_date": "2025-09-16",
+    "message": "Hello,\n\nThere was a leak in my kitchen last night because of my upstairs neighbor. His dishwasher was badly installed and as a result the wall is soaked and the paint is peeling off (photo attached).\n\nKind regards.",
+    "attachments": ["WaterDamage_100.jpg"]
+  },
+  {
+    "id": "ex2",
+    "received_date": "2025-09-18",
+    "message": "Hello, I was burgled this morning. The thieves came in through the bedroom skylight and stole all my electronic devices. Please contact me quickly.",
+    "attachments": []
+  },
+  {
+    "id": "ex3",
+    "received_date": "2025-09-12",
+    "message": "Hello,\n\nOn September 10, 2025, a fire broke out in the bedroom because of a faulty appliance and damaged a large part of the room. I would like to be compensated so that I can carry out the necessary work.\n\nBest regards.",
+    "attachments": ["FireDamage_7.png", "FireDamage_193.png"]
+  },
+  {
+    "id": "d04",
+    "received_date": "2025-09-22",
+    "message": "Hello,\n\nOn Saturday, September 20, the water heater in my bathroom leaked during the night. The water seeped into the false ceiling of the hallway, which is now stained and starting to collapse. I live on the top floor, no neighbor is affected. The plumber shut off the water supply. Photo attached.\n\nThanks,\nJohn Smith",
+    "attachments": ["WaterDamage_90.jpg"]
+  },
+  {
+    "id": "d05",
+    "received_date": "2025-09-23",
+    "message": "Hello, for several months mold has been appearing on the ceiling and in the corners of the bedroom, and it is getting worse with the humidity. I am sending you photos. Can my insurance cover the repair work?",
+    "attachments": ["Mold_Severe_64.jpg", "Mold_Severe_187.jpg"]
+  },
+  {
+    "id": "d06",
+    "received_date": "2025-09-25",
+    "message": "Hello,\n\nLast night (September 24, 2025), an electrical outlet in the living room caught fire when I plugged in the charger. I managed to put out the start of the fire myself with a blanket, so I did not call the fire brigade. The wall around it is blackened and the lamp plugged in next to it melted (bought for €80 last year). Photo attached.\n\nKind regards.",
+    "attachments": ["FireDamage_31.jpg"]
+  },
+  {
+    "id": "d07",
+    "received_date": "2025-09-29",
+    "message": "Hello,\n\nIn the night from Friday, September 26 to Saturday, September 27, 2025, my apartment was burgled: the front door was forced open. I filed a police report on September 27 at the 12th arrondissement police station (police report no. PV-2025-0927-118). The stolen items are: a Samsung television (€1,200), a laptop (€1,500, invoice available) and jewelry (€800).\n\nKind regards,\nJohn Smith",
+    "attachments": []
+  },
+  {
+    "id": "d08",
+    "received_date": "2025-10-06",
+    "message": "Hello, when I came back from vacation I found that some individuals had tagged my apartment door and broken the lock and the mailbox. I don't know exactly when this happened. What should I do?",
+    "attachments": []
+  },
+  {
+    "id": "d09",
+    "received_date": "2025-10-08",
+    "message": "Hello,\n\nDuring the storm of October 6, 2025, a tree fell on my roof and tore off part of the tiles. Rainwater then got into the attic. Photos attached.\n\nKind regards.",
+    "attachments": ["NaturalDamage_432.jpg", "NaturalDamage_455.jpeg"]
+  },
+  {
+    "id": "d10",
+    "received_date": "2025-10-13",
+    "message": "Hello,\n\nOn Saturday, October 11, 2025, a pan of oil caught fire in the kitchen. The fire brigade came quickly. The range hood and a wall cabinet burned (cabinet bought for €600, hood for €350). You will find a photo of the damage attached.\n\nBest regards.",
+    "attachments": ["WaterDamage_306.jpg"]
+  },
+  {
+    "id": "d11",
+    "received_date": "2025-10-02",
+    "message": "Hello,\n\nOn Monday, September 22, 2025, a pipe burst under the living room floor and the whole room was flooded. I could not write to you earlier because I was traveling. No neighbor was affected. Photo attached.\n\nKind regards.",
+    "attachments": ["WaterDamage_306.jpg"]
+  },
+  {
+    "id": "d12",
+    "received_date": "2025-10-15",
+    "message": "Hello,\n\nYesterday afternoon, an explosion occurred in my kitchen because of a gas leak. The fire brigade came and secured the premises. The gas pipe seems to have been deliberately cut, I suspect my former roommate. Several rooms are destroyed, photos attached.\n\nJohn Smith",
+    "attachments": ["FireDamage_193.png", "FireDamage_45.jpg"]
+  }
+]

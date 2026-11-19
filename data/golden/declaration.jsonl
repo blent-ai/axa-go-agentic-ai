@@ -1,0 +1,12 @@
+{"id": "ex1", "claim_type": "water_damage", "loss_date": ["2025-09-15"], "missing_items": ["joint_report"], "comment": "Leak caused by the upstairs neighbor (third party involved): joint report required. \"Last night\" = 09/15."}
+{"id": "ex2", "claim_type": "theft_vandalism", "loss_date": ["2025-09-18"], "missing_items": ["police_report", "inventory"], "comment": "\"This morning\" = received date. \"All my electronic devices\" is not an inventory."}
+{"id": "ex3", "claim_type": "fire_explosion", "loss_date": ["2025-09-10"], "missing_items": ["inventory"], "comment": "Two photos attached, no item listed."}
+{"id": "d04", "claim_type": "water_damage", "loss_date": ["2025-09-20"], "missing_items": [], "comment": "Top floor, no neighbor affected: no joint report. Complete file."}
+{"id": "d05", "claim_type": "water_damage", "loss_date": null, "missing_items": ["loss_date"], "comment": "Mold \"for several months\": no date. Borderline case (lack of maintenance) that the Validation agent must reject."}
+{"id": "d06", "claim_type": "fire_explosion", "loss_date": ["2025-09-24"], "missing_items": [], "comment": "The melted lamp is inventoried with its value (€80). Fire brigade not called: useful information, but not a document to provide."}
+{"id": "d07", "claim_type": "theft_vandalism", "loss_date": ["2025-09-26", "2025-09-27"], "missing_items": [], "comment": "Night of the 26th to the 27th: both dates are acceptable. Police report and itemized inventory provided."}
+{"id": "d08", "claim_type": "theft_vandalism", "loss_date": null, "missing_items": ["loss_date", "police_report", "inventory"], "comment": "Vandalism discovered after coming back from vacation, date unknown. Items mentioned without values."}
+{"id": "d09", "claim_type": "out_of_scope", "loss_date": ["2025-10-06"], "missing_items": [], "comment": "Storm: out of the system's scope."}
+{"id": "d10", "claim_type": "fire_explosion", "loss_date": ["2025-10-11"], "missing_items": [], "comment": "Complete. The attached photo shows a flood: the Validation agent must detect it."}
+{"id": "d11", "claim_type": "water_damage", "loss_date": ["2025-09-22"], "missing_items": [], "comment": "Complete, but reported late: rejection expected at validation."}
+{"id": "d12", "claim_type": "fire_explosion", "loss_date": ["2025-10-14"], "missing_items": ["inventory", "police_report"], "comment": "Suspected deliberate act: police report required. \"Several rooms destroyed\" is not an inventory."}

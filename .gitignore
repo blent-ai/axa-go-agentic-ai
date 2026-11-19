@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Environments
+.env
+.venv/
+venv/
+
+# Tooling
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.DS_Store
+
+# Evaluation reports produced by the agents
+reports/
+
+# Photos added from the Streamlit interface
+data/attachments/upload_*
+
+# Checkpoint databases (step 5)
+checkpoints/
+*.sqlite
+*.db
